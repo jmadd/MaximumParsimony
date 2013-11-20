@@ -12,10 +12,9 @@ def ancestor(s1, s2):
 
 def fullyConnectedGraph(V):
 	gr = nx.Graph()
-	gr.add_nodes_from(range(0, len(V)))
 	for i in xrange(0,len(V)):
 		for j in xrange(i+1,len(V)):
-			gr.add_edge(i,j, weight=hamming(final[ V[i] ], final[ V[j] ]) )
+			gr.add_edge(V[i],V[j], weight=hamming(final[ V[i] ], final[ V[j] ]) )
 	return gr
 
 def cheapestEdge(G):
@@ -36,15 +35,12 @@ def maxPar(V):
 	head = None
 	while len(V) > 1:
 		G = fullyConnectedGraph(V)
-		# cheapestEdge(G)
 		T = nx.minimum_spanning_tree(G)
 		A = []
 		while T.number_of_edges() > 0:
 			u,v = cheapestEdge(T)
 			A.append( (u,v) )
 			if T.number_of_nodes() == 2:
-				anc = ancestor(final[u], final[v])
-				final.append(anc)
 				head = len(final)
 			T.remove_node(u)
 			T.remove_node(v)
@@ -60,10 +56,8 @@ def maxPar(V):
 def cost(node, tree):
 	total = 0
 	child = None
-	print node
 	if node in tree:
 		child1, child2 = tree[node]
-		print child1, child2
 		total = total + hamming( final[node], final[child1] ) + hamming( final[node], final[child2] ) + cost(child1, tree) + cost(child2, tree)
 	return total
 
