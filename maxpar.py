@@ -1,4 +1,5 @@
 from networkx import nx
+from ete2 import Tree
 
 inf = 10e10
 final = []
@@ -44,7 +45,6 @@ def maxPar(V):
 				head = len(final)
 			T.remove_node(u)
 			T.remove_node(v)
-		# Z = T.nodes()
 		V = T.nodes()
 		for u, v in A:
 			anc = ancestor(final[u], final[v])
@@ -61,11 +61,21 @@ def cost(node, tree):
 		total = total + hamming( final[node], final[child1] ) + hamming( final[node], final[child2] ) + cost(child1, tree) + cost(child2, tree)
 	return total
 
+def add_to_tree(node, tree, t):
+	if node in tree:
+		c1, c2 = tree[node]
+		nd1 = t.add_child( name=final[c1] )
+		nd2 = t.add_child( name=final[c1] )
+		add_to_tree( c1, tree, nd1 )
+		add_to_tree( c2, tree, nd2 )
+
 if __name__ == '__main__':
 	x = []
 	for line in open('MaxPar.in'):
 		x.append(line[:-1])
-	print x
+	# print x
 	head, tree = maxPar(x)
-	print tree
-	print cost(head, tree)
+	t = Tree( name=final[head] )
+	add_to_tree(head, tree, t)
+	print t
+	print "Cost:", cost(head, tree)
