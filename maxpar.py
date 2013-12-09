@@ -1,6 +1,7 @@
 import sys
 from networkx import nx
 from ete2 import Tree
+import argparse
 
 inf = 10e10
 final = []
@@ -27,7 +28,13 @@ def cheapestEdge(G):
             node = (u,v)
             cheapest = G[u][v]['weight']
     return node
-    
+
+def ObtainAnc(A, tree, V):
+    for u, v in A:
+        anc = ancestor(final[u], final[v])
+        final.append(anc)
+        tree[ len(final) - 1 ] = [u,v]
+        V.append( len(final) - 1 )
 
 def maxPar(V):
     tree = {}
@@ -47,49 +54,79 @@ def maxPar(V):
             T.remove_node(u)
             T.remove_node(v)
         V = T.nodes()
-        for u, v in A:
-            anc = ancestor(final[u], final[v])
-            final.append(anc)
-            tree[ len(final) - 1 ] = (u,v)
-            V.append( len(final) - 1 )
+        ObtainAnc(A,tree, V)
     return head, tree
+
+def addToTree(tree, T, node):
+    for next in T.neighbors(node):
+        if node not in tree:
+            tree[node] = []
+        tree[node].append(next)
+    T.remove_node(node)
+    if node in tree:
+        for next in tree[node]:
+            addToTree(tree, T, next)
+
+def maxPar2Approx(V):
+    tree = {}
+    for i in V:
+        final.append(i)
+    V = range(0, len(final))
+    head = 0
+    G = fullyConnectedGraph(V)
+    T = nx.minimum_spanning_tree(G)
+    addToTree(tree, T, head)
+    return head, tree
+
 
 def cost(node, tree):
     total = 0
     child = None
     if node in tree:
-        child1, child2 = tree[node]
-        total = total + hamming( final[node], final[child1] ) + hamming( final[node], final[child2] ) + cost(child1, tree) + cost(child2, tree)
+        for child in tree[node]:
+            total = total + hamming(final[node], final[child]) + cost( child, tree )
     return total
 
 def add_to_tree(node, tree, match, t):
     if node in tree:
-        c1, c2 = tree[node]
-        st1 = final[c1]
-        st2 = final[c2]
-        nd1 = t.add_child( name=match[st1] if st1 in match else "NOT KNOWN" )
-        nd2 = t.add_child( name=match[st2] if st2 in match else "NOT KNOWN" )
-        add_to_tree( c1, tree, match, nd1 )
-        add_to_tree( c2, tree, match, nd2 )
+        for child in tree[node]:
+            str_child = final[child]
+            node_1 = t.add_child( name=match[str_child] if str_child in match else "NOT KNOWN" )
+            add_to_tree( child, tree, match, node_1 )
+
+def cleanup(root):
+    pass
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print "Usage: <input file>"
-        exit(-1)
-    infile = sys.argv[1]
+    parser = argparse.ArgumentParser(description='finds the maximum parsimony tree')
+    parser.add_argument('infile', type=str,
+                       help='input file')
+    parser.add_argument('--twoapprox', dest='trigger', action='store_const',
+                       const=True, default=False,
+                       help='use two approx algorithm (default: use custom algorithm)')
+    args = parser.parse_args()
+    twoapprox = args.trigger
+    infile = args.infile
     x = []
     taxon = []
     match = {}
     for line in open(infile):
+        line = str(line)
         if '>' in line: 
-            taxon.append(line[:-1])
+            taxon.append(line[1:-1])
         else:
             x.append(line[:-1])
             match[x[-1]] = taxon[-1]
-    head, tree = maxPar(x)
+    if twoapprox:
+        head, tree = maxPar2Approx(x)
+    else:
+        head, tree = maxPar(x)
     st = final[head]
+    t = Tree(name="R")
     t = Tree( name=match[st] if st in match else "NOT KNOWN" )
     add_to_tree(head, tree, match, t)
+    cleanup(t)
     t.ladderize()
     print t.get_ascii(show_internal=True)
+    print t.write(format=1).replace(":1", "").replace("1", "")
     print "Cost:", cost(head, tree)
