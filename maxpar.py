@@ -2,6 +2,8 @@ import sys
 from networkx import nx
 from ete2 import Tree
 import argparse
+import datetime
+from random import randint as rand
 
 inf = 10e10
 final = []
@@ -11,7 +13,6 @@ def hamming(s1, s2):
 
 def ancestor(s1, s2):
     return s1
-    # return sum( ch1 == ch2 for ch1, ch2 in zip(s1, s2))
 
 def fullyConnectedGraph(V):
     gr = nx.Graph()
@@ -76,6 +77,11 @@ def maxPar2Approx(V):
     G = fullyConnectedGraph(V)
     T = nx.minimum_spanning_tree(G)
     addToTree(tree, T, head)
+
+    # adjust nodes to add transition of generations
+    for node in tree:
+        final.append(final[node])
+        tree[node].append(node)
     return head, tree
 
 
@@ -84,7 +90,8 @@ def cost(node, tree):
     child = None
     if node in tree:
         for child in tree[node]:
-            total = total + hamming(final[node], final[child]) + cost( child, tree )
+            if ( twoapprox and final[child] != final[node]) or not twoapprox:
+                total = total + hamming(final[node], final[child]) + cost( child, tree )
     return total
 
 def add_to_tree(node, tree, match, t):
@@ -92,10 +99,8 @@ def add_to_tree(node, tree, match, t):
         for child in tree[node]:
             str_child = final[child]
             node_1 = t.add_child( name=match[str_child] if str_child in match else "NOT KNOWN" )
-            add_to_tree( child, tree, match, node_1 )
-
-def cleanup(root):
-    pass
+            if ( twoapprox and str_child != final[node]) or not twoapprox:
+                add_to_tree( child, tree, match, node_1 )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='finds the maximum parsimony tree')
@@ -117,16 +122,20 @@ if __name__ == '__main__':
         else:
             x.append(line[:-1])
             match[x[-1]] = taxon[-1]
+    a = datetime.datetime.now()
     if twoapprox:
         head, tree = maxPar2Approx(x)
     else:
         head, tree = maxPar(x)
+    b = datetime.datetime.now()
+    c = b - a
     st = final[head]
     t = Tree(name="R")
     t = Tree( name=match[st] if st in match else "NOT KNOWN" )
     add_to_tree(head, tree, match, t)
-    cleanup(t)
     t.ladderize()
+    newick = t.write(format=1).replace(":1", "").replace("1", "")
     print t.get_ascii(show_internal=True)
-    print t.write(format=1).replace(":1", "").replace("1", "")
+    print newick
     print "Cost:", cost(head, tree)
+    print "Time (seconds): ", c.microseconds / float(1e6)
