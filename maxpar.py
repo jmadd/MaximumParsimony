@@ -127,7 +127,7 @@ if __name__ == '__main__':
         head, tree = maxPar2Approx(x)
     else:
         head, tree = maxPar(x)
-    b = datetime.datetime.now()f
+    b = datetime.datetime.now()
     c = b - a
     st = final[head]
     t = Tree(name="R")
